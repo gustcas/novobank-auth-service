@@ -1,0 +1,192 @@
+### Variables globales
+@baseUrl = http://localhost:8081
+@contentType = application/json
+
+### ══ HAPPY PATH ══════════════════════════════════════════════════════════════
+
+# 1. Registrar usuario nuevo
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "juan.perez@novobanco.com",
+  "password": "Password123!",
+  "fullName": "Juan Pérez",
+  "customerId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+
+###
+
+# 2. Login exitoso — copia accessToken y refreshToken de la respuesta
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "juan.perez@novobanco.com",
+  "password": "Password123!"
+}
+
+###
+
+# 3. Obtener usuario actual — reemplaza <ACCESS_TOKEN>
+GET {{baseUrl}}/api/v1/auth/me
+Authorization: Bearer <ACCESS_TOKEN>
+
+###
+
+# 4. Refresh token — reemplaza <REFRESH_TOKEN>
+POST {{baseUrl}}/api/v1/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "<REFRESH_TOKEN>"
+}
+
+###
+
+# 5. Logout — reemplaza <ACCESS_TOKEN>
+POST {{baseUrl}}/api/v1/auth/logout
+Authorization: Bearer <ACCESS_TOKEN>
+
+###
+
+### ══ CASOS DE ERROR ══════════════════════════════════════════════════════════
+
+# 6. Login con password incorrecto — debe retornar 401 GENÉRICO
+# (no debe indicar si fue email o password lo incorrecto)
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "juan.perez@novobanco.com",
+  "password": "passwordincorrecto"
+}
+
+###
+
+# 7. Login con email inexistente — debe retornar 401 GENÉRICO
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "noexiste@novobanco.com",
+  "password": "Password123!"
+}
+
+###
+
+# 8. Registrar email duplicado — debe retornar 409
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "juan.perez@novobanco.com",
+  "password": "Password123!",
+  "fullName": "Otro Usuario",
+  "customerId": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+}
+
+###
+
+# 9. Token inválido en /me — debe retornar 401
+GET {{baseUrl}}/api/v1/auth/me
+Authorization: Bearer token.invalido.aqui
+
+###
+
+# 10. Sin token en /me — debe retornar 401
+GET {{baseUrl}}/api/v1/auth/me
+
+###
+
+# 11. Refresh con token revocado (usar el de antes del logout) — debe retornar 401
+POST {{baseUrl}}/api/v1/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "<REFRESH_TOKEN_REVOCADO>"
+}
+
+###
+
+# 12. Request malformado — password muy corto — debe retornar 400
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "test@novobanco.com",
+  "password": "123",
+  "fullName": "Test",
+  "customerId": "c3d4e5f6-a7b8-9012-cdef-123456789012"
+}
+
+###
+
+# 13. Request sin campo requerido — debe retornar 400
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "juan.perez@novobanco.com"
+}
+
+###
+
+### ══ FLUJO COMPLETO E2E ══════════════════════════════════════════════════════
+
+# PASO 1: Registrar usuario
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: {{contentType}}
+
+{
+  "email": "e2e.test@novobanco.com",
+  "password": "E2eTest123!",
+  "fullName": "Usuario E2E",
+  "customerId": "d4e5f6a7-b8c9-0123-defa-234567890123"
+}
+
+###
+
+# PASO 2: Login — guarda los tokens
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "e2e.test@novobanco.com",
+  "password": "E2eTest123!"
+}
+
+###
+
+# PASO 3: Verificar identidad con /me
+GET {{baseUrl}}/api/v1/auth/me
+Authorization: Bearer <ACCESS_TOKEN_DEL_PASO_2>
+
+###
+
+# PASO 4: Refrescar el token
+POST {{baseUrl}}/api/v1/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "<REFRESH_TOKEN_DEL_PASO_2>"
+}
+
+###
+
+# PASO 5: Logout
+POST {{baseUrl}}/api/v1/auth/logout
+Authorization: Bearer <ACCESS_TOKEN_DEL_PASO_2>
+
+###
+
+# PASO 6: Verificar que el refresh token quedó revocado
+POST {{baseUrl}}/api/v1/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "<REFRESH_TOKEN_DEL_PASO_2>"
+}
+# Esperado: 401 — token revocado
+
+###

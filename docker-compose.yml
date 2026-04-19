@@ -1,0 +1,77 @@
+version: "3.9"
+
+services:
+
+  # ── Auth Service DB ──────────────────────────────────────────
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: novobank-postgres-auth
+    environment:
+      POSTGRES_DB: novobank_auth
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d novobank_auth"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Account Service DB ───────────────────────────────────────
+  postgres-accounts:
+    image: postgres:16-alpine
+    container_name: novobank-postgres-accounts
+    environment:
+      POSTGRES_DB: novobank_accounts
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_accounts_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d novobank_accounts"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Auth Service ─────────────────────────────────────────────
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: novobank-auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      DB_URL: jdbc:postgresql://postgres-auth:5432/novobank_auth
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-change_this_secret_min_256_bits_for_dev_only}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-900000}
+      JWT_REFRESH_EXPIRATION_MS: ${JWT_REFRESH_EXPIRATION_MS:-604800000}
+      SERVER_PORT: 8081
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+
+  # ── pgAdmin ──────────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: novobank-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@novobanco.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres-auth
+      - postgres-accounts
+
+volumes:
+  postgres_auth_data:
+  postgres_accounts_data:
