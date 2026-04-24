@@ -74,7 +74,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
         return new Result(accessToken, rawRefreshToken, jwtService.getExpirationMs() / 1000, userInfo);
     }
 
-    static String sha256(String input) {
+    public static String sha256(String input) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
